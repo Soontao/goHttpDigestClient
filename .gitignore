@@ -24,3 +24,9 @@ _testmain.go
 *.prof
 
 vendor
+
+#ide
+
+.idea
+
+vendor

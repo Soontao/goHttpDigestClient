@@ -5,23 +5,31 @@ import (
 )
 
 type Client struct {
-	inited bool
-	qop    string
-	auth   string
+	is_init            bool
+	username, password string
+	option             ClientOption
+	http.Client
 }
 
 func NewClient() *Client {
 	return &Client{}
 }
 
-func GetAuthInfoFromHeader(h *http.Header) DigestAuthInfo {
-	return NewDigestAuthInfo(h.Get("WWW-Authenticate"))
+func GetWwwAuthFromHeader(h *http.Header) WwwAuthorization {
+	return NewWwwAuthHeader(h.Get("WWW-Authenticate"))
 }
 
-func computeAuthResponse(info DigestAuthInfo) string {
-	r := ""
-	if info.GetAuthItem(DIGESTQOP) != "" {
-
+func (c *Client) Do(req *http.Request, opt *ClientOption) (*http.Response, error) {
+	res, err := c.Client.Do(req)
+	if res.StatusCode == http.StatusUnauthorized {
+		www_auth := GetWwwAuthFromHeader(&res.Header)
+		www_auth.ComputeResponse(req.Method, req.URL.RequestURI(), "", opt.username, opt.password)
+		authorization := www_auth.ToAuthorizationStr()
+		req.Header.Set(KEY_AUTHORIZATION, authorization)
+		return c.Client.Do(req)
+	} else {
+		return res, err
 	}
-	return r
 }
+
+var DefaultClient = &Client{}
