@@ -35,7 +35,7 @@ func NewChallenge(wwwAuthHeader string) Challenge {
 		r[KEY_AUTH_SCHEMA] = wwwAuthArr[0]
 		for i := 1; i < wwwAuthArrLen; i++ {
 			itemArr := strings.Split(wwwAuthArr[i], "=")
-			r.SetAuthItem(itemArr[0], itemArr[1])
+			r.SetChallengeItem(itemArr[0], itemArr[1])
 		}
 	}
 	return r
@@ -45,16 +45,17 @@ func (info Challenge) IsDigestAuth() bool {
 	return info[KEY_AUTH_SCHEMA] == KEY_DIGEST
 }
 
-func (info Challenge) SetAuthItem(itemKey string, itemValue string) {
+func (info Challenge) SetChallengeItem(itemKey string, itemValue string) {
 	info[itemKey] = itemValue
 }
 
-func (info Challenge) GetAuthItemPure(itemKey string) string {
+func (info Challenge) GetChallengeItemPure(itemKey string) string {
 	return strings.Replace(info[itemKey], `"`, "", -1)
 }
 
-func (info Challenge) GetAuthItemFormat(itemKey string) string {
-	r := info.GetAuthItemPure(itemKey)
+// some specific key, will add qutation mark
+func (info Challenge) GetChallengeItemFormat(itemKey string) string {
+	r := info.GetChallengeItemPure(itemKey)
 	switch itemKey {
 	case KEY_QOP, KEY_NONCE_COUNT:
 		return r
@@ -63,29 +64,33 @@ func (info Challenge) GetAuthItemFormat(itemKey string) string {
 	}
 }
 
+// format challenge header to authorization header
+//
+// MAYBE you should computeResponseFirst()
 func (info Challenge) ToAuthorizationStr() string {
-	authType := KEY_DIGEST
-	authItemStr := ""
+	auth_schema := KEY_DIGEST
+	authorization_content := ""
 	// how to specify the sequence
 	for k, _ := range info {
 		if k != KEY_AUTH_SCHEMA {
-			authItemStr += fmt.Sprintf(", %s=%s", k, info.GetAuthItemFormat(k))
+			authorization_content += fmt.Sprintf(", %s=%s", k, info.GetChallengeItemFormat(k))
 		}
 	}
-	return authType + strings.Replace(authItemStr, ",", "", 1)
+	return auth_schema + strings.Replace(authorization_content, ",", "", 1)
 }
 
+// base challenge to compute the response, and the response will be checking by server
 func (h Challenge) ComputeResponse(method, uri, entity, username, password string) Challenge {
-	qop := h.GetAuthItemPure(KEY_QOP)
-	realm := h.GetAuthItemPure(KEY_REALM)
-	nonce := h.GetAuthItemPure(KEY_NONCE)
-	nonceCount := h.GetAuthItemPure(KEY_NONCE_COUNT)
-	cNonce := h.GetAuthItemPure(KEY_CNONCE)
+	qop := h.GetChallengeItemPure(KEY_QOP)
+	realm := h.GetChallengeItemPure(KEY_REALM)
+	nonce := h.GetChallengeItemPure(KEY_NONCE)
+	nonceCount := h.GetChallengeItemPure(KEY_NONCE_COUNT)
+	cNonce := h.GetChallengeItemPure(KEY_CNONCE)
 	response, cNonce, nonceCount := computeResponse(qop, realm, nonce, nonceCount, cNonce, method, uri, entity, username, password)
-	h.SetAuthItem(KEY_USERNAME, `"`+username+`"`)
-	h.SetAuthItem(KEY_URI, uri)
-	h.SetAuthItem(KEY_CNONCE, cNonce)
-	h.SetAuthItem(KEY_NONCE_COUNT, nonceCount)
-	h.SetAuthItem(KEY_RESPONSE, response)
+	h.SetChallengeItem(KEY_USERNAME, username)
+	h.SetChallengeItem(KEY_URI, uri)
+	h.SetChallengeItem(KEY_CNONCE, cNonce)
+	h.SetChallengeItem(KEY_NONCE_COUNT, nonceCount)
+	h.SetChallengeItem(KEY_RESPONSE, response)
 	return h
 }

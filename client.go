@@ -9,9 +9,8 @@ import (
 // if option is set, get challenge at construct time
 // if option not set, ever digest auth will send 2 request
 type Client struct {
-	is_init            bool
-	username, password string
-	option             ClientOption
+	is_init bool
+	option  ClientOption
 	http.Client
 }
 
@@ -20,11 +19,11 @@ type ClientOption struct {
 	password string
 }
 
-var DefaultClient = &Client{}
-
-func NewClient() *Client {
+// create new Client instance
+func NewClient(username, password string) *Client {
+	opt := &ClientOption{username: username, password: password}
 	// here need more attention
-	return &Client{}
+	return &Client{option: *opt, is_init: false}
 }
 
 func GetChallengeFromHeader(h *http.Header) Challenge {
@@ -55,6 +54,9 @@ func getStrFromIO(r io.ReadCloser) string {
 		return ""
 	}
 }
+
+// static Defualt Client
+var DefaultClient = &Client{is_init: true}
 
 // Default Client Do　Request
 func Do(req *http.Request, opt *ClientOption) (*http.Response, error) {

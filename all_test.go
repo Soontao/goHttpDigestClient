@@ -19,10 +19,10 @@ func TestGetChanllengeFromHeader(t *testing.T) {
 	h := http.Header{}
 	h.Set("WWW-Authenticate", `Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
 	authOption := GetChallengeFromHeader(&h)
-	assert.Equal(t, "Digest", authOption.GetAuthItemPure(KEY_AUTH_SCHEMA), "auth type")
-	assert.Equal(t, "Users", authOption.GetAuthItemPure(KEY_REALM), "auth realm")
-	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", authOption.GetAuthItemPure(KEY_NONCE), "auth server nonce")
-	assert.Equal(t, "auth", authOption.GetAuthItemPure(KEY_QOP), "auth qop")
+	assert.Equal(t, "Digest", authOption.GetChallengeItemPure(KEY_AUTH_SCHEMA), "auth type")
+	assert.Equal(t, "Users", authOption.GetChallengeItemPure(KEY_REALM), "auth realm")
+	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", authOption.GetChallengeItemPure(KEY_NONCE), "auth server nonce")
+	assert.Equal(t, "auth", authOption.GetChallengeItemPure(KEY_QOP), "auth qop")
 	t.Log("GetAuthInfoFromHeader can get all info from header['www-authenticate']")
 }
 
@@ -36,10 +36,10 @@ func TestIsDigestAuth(t *testing.T) {
 
 func TestNewChallenge(t *testing.T) {
 	dai := NewChallenge(`Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
-	assert.Equal(t, "Digest", dai.GetAuthItemPure(KEY_AUTH_SCHEMA), "auth type")
-	assert.Equal(t, "Users", dai.GetAuthItemPure(KEY_REALM), "auth realm")
-	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", dai.GetAuthItemPure(KEY_NONCE), "auth server nonce")
-	assert.Equal(t, "auth", dai.GetAuthItemPure(KEY_QOP), "auth qop")
+	assert.Equal(t, "Digest", dai.GetChallengeItemPure(KEY_AUTH_SCHEMA), "auth type")
+	assert.Equal(t, "Users", dai.GetChallengeItemPure(KEY_REALM), "auth realm")
+	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", dai.GetChallengeItemPure(KEY_NONCE), "auth server nonce")
+	assert.Equal(t, "auth", dai.GetChallengeItemPure(KEY_QOP), "auth qop")
 	t.Log("create new DigestAuthInfo pass")
 }
 
@@ -120,4 +120,10 @@ func TestClientAuthorize(t *testing.T) {
 	if string(body) != "" {
 		t.Log("client test well")
 	}
+}
+
+func TestNewClient(t *testing.T) {
+	client := NewClient(testServerUsername,testServerPassword)
+	assert.Equal(t,testServerUsername,client.option.username,"option should equal to set");
+	assert.Equal(t,testServerPassword,client.option.password,"option should equal to set");
 }
