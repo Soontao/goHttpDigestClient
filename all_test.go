@@ -9,42 +9,42 @@ import (
 )
 
 const (
-	testWwwAuthStr = `Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`
+	testWwwAuthStr          = `Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`
 	testDigestAuthServerURL = "https://discover-contrarious-bluetit.cfapps.io/"
-	testServerUsername = "username"
-	testServerPassword = "password"
+	testServerUsername      = "username"
+	testServerPassword      = "password"
 )
 
-func TestGetAuthInfoFromHeader(t *testing.T) {
+func TestGetChanllengeFromHeader(t *testing.T) {
 	h := http.Header{}
 	h.Set("WWW-Authenticate", `Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
-	authOption := GetWwwAuthFromHeader(&h)
-	assert.Equal(t, "Digest", authOption.GetAuthItem(KEY_AUTH_SCHEMA), "auth type")
-	assert.Equal(t, "Users", authOption.GetAuthItem(KEY_REALM), "auth realm")
-	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", authOption.GetAuthItem(KEY_NONCE), "auth server nonce")
-	assert.Equal(t, "auth", authOption.GetAuthItem(KEY_QOP), "auth qop")
+	authOption := GetChallengeFromHeader(&h)
+	assert.Equal(t, "Digest", authOption.GetAuthItemPure(KEY_AUTH_SCHEMA), "auth type")
+	assert.Equal(t, "Users", authOption.GetAuthItemPure(KEY_REALM), "auth realm")
+	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", authOption.GetAuthItemPure(KEY_NONCE), "auth server nonce")
+	assert.Equal(t, "auth", authOption.GetAuthItemPure(KEY_QOP), "auth qop")
 	t.Log("GetAuthInfoFromHeader can get all info from header['www-authenticate']")
 }
 
 func TestIsDigestAuth(t *testing.T) {
 	h := http.Header{}
 	h.Set("WWW-Authenticate", `Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
-	authOption := GetWwwAuthFromHeader(&h)
+	authOption := GetChallengeFromHeader(&h)
 	assert.True(t, authOption.IsDigestAuth(), "auth type is Digest")
 	t.Log("IsDigestAuth pass")
 }
 
-func TestNewDigestAuthInfo(t *testing.T) {
-	dai := NewWwwAuthHeader(`Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
-	assert.Equal(t, "Digest", dai.GetAuthItem(KEY_AUTH_SCHEMA), "auth type")
-	assert.Equal(t, "Users", dai.GetAuthItem(KEY_REALM), "auth realm")
-	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", dai.GetAuthItem(KEY_NONCE), "auth server nonce")
-	assert.Equal(t, "auth", dai.GetAuthItem(KEY_QOP), "auth qop")
+func TestNewChallenge(t *testing.T) {
+	dai := NewChallenge(`Digest realm="Users", nonce="EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", qop="auth"`)
+	assert.Equal(t, "Digest", dai.GetAuthItemPure(KEY_AUTH_SCHEMA), "auth type")
+	assert.Equal(t, "Users", dai.GetAuthItemPure(KEY_REALM), "auth realm")
+	assert.Equal(t, "EIQrqdZGXLGKROqDCs4YoRDtnXzZTthi", dai.GetAuthItemPure(KEY_NONCE), "auth server nonce")
+	assert.Equal(t, "auth", dai.GetAuthItemPure(KEY_QOP), "auth qop")
 	t.Log("create new DigestAuthInfo pass")
 }
 
 func TestToWwwHeaderStr(t *testing.T) {
-	dai := NewWwwAuthHeader(testWwwAuthStr)
+	dai := NewChallenge(testWwwAuthStr)
 	t.Log(fmt.Sprintf("target:%s", testWwwAuthStr))
 	t.Log(fmt.Sprintf("result:%s", dai.ToAuthorizationStr()))
 	t.Log("check output")
@@ -76,25 +76,47 @@ func TestComputeResponse(t *testing.T) {
 }
 
 func TestAuthorize(t *testing.T) {
-	req, _ := http.NewRequest("GET", testDigestAuthServerURL, nil)
+	req, err := http.NewRequest("GET", testDigestAuthServerURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	opt := &ClientOption{username: testServerUsername, password: testServerPassword}
-	res, _ := http.DefaultClient.Do(req)
-	www_auth := NewWwwAuthHeader(res.Header.Get("WWW-Authenticate"))
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	www_auth := NewChallenge(res.Header.Get("WWW-Authenticate"))
 	www_auth.ComputeResponse(req.Method, req.URL.RequestURI(), "", opt.username, opt.password)
 	authorization := www_auth.ToAuthorizationStr()
 	req.Header.Set(KEY_AUTHORIZATION, authorization)
-	res, _ = http.DefaultClient.Do(req)
-	body, _ := ioutil.ReadAll(res.Body)
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(body) != "" {
 		t.Log("manual test well")
 	}
 }
 
 func TestClientAuthorize(t *testing.T) {
-	req, _ := http.NewRequest("GET", testDigestAuthServerURL, nil)
+	req, err := http.NewRequest("GET", testDigestAuthServerURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	opt := &ClientOption{username: testServerUsername, password: testServerPassword}
-	res, _ := DefaultClient.Do(req, opt)
-	body, _ := ioutil.ReadAll(res.Body)
+	res, err := DefaultClient.Do(req, opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(fmt.Sprintf("status code: %d", res.StatusCode))
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(body) != "" {
 		t.Log("client test well")
 	}
